@@ -22,4 +22,13 @@ object fmMain: TfmMain
     TabOrder = 0
     OnClick = Button1Click
   end
+  object Button2: TButton
+    Left = 238
+    Top = 154
+    Width = 75
+    Height = 25
+    Caption = 'Button2'
+    TabOrder = 1
+    OnClick = Button2Click
+  end
 end
