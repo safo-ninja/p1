@@ -1,3 +1,6 @@
 *.exe
 *.~*
 /p1.txt
+*.dsk
+fMain.ddp
+*.patch
