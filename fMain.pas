@@ -8,8 +8,12 @@ uses
 
 type
   TfmMain = class(TForm)
-    Button1: TButton;
-    procedure Button1Click(Sender: TObject);
+    Button1 : TButton;
+    Button2 : TButton;
+    Memo1 : TMemo;
+    procedure Button1Click(Sender : TObject);
+    procedure Button2Click(Sender : TObject);
+    procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
   public
@@ -17,15 +21,18 @@ type
   end;
 
 var
-  fmMain: TfmMain;
+  fmMain : TfmMain;
 
 implementation
 
-uses Unit1;
+uses
+  Unit1,
+  //uLkJSON,
+  zsJSON;
 
 {$R *.dfm}
 
-procedure TfmMain.Button1Click(Sender: TObject);
+procedure TfmMain.Button1Click(Sender : TObject);
 begin
   with TForm1.Create(nil) do
   try
@@ -35,4 +42,85 @@ begin
   end;
 end;
 
+procedure TfmMain.Button2Click(Sender : TObject);
+var
+  ident : Integer;
+
+  function _SS() : string;
+  var
+    i : Integer;
+  begin
+    Result := '';
+    for i := 1 to ident do
+      Result := Result + '  ';
+  end;
+
+  procedure _Log(s : string);
+  begin
+    Memo1.Lines.Add(_SS() + s);
+  end;
+
+var
+  fs : TFileStream;
+  zs : TzsJSONReader;
+  ss : TStringStream;
+  s : string;
+begin
+  ident := 0;
+  ss := nil;
+  fs := TFileStream.Create('d:\_SSD\pzdc.json', fmOpenRead);
+  try
+    ss := TStringStream.Create('');
+    ss.CopyFrom(fs, fs.Size);
+    s := ss.DataString;
+  finally
+    fs.Free();
+    ss.Free();
+  end;
+
+  Memo1.Clear();
+  zs := TzsJSONReader.Create(s);
+  try
+    while zs.Read() do
+    begin
+      if zs.TokenType = ttStartObject then
+      begin
+        _Log('{');
+        Inc(ident);
+      end
+      else if zs.TokenType = ttEndObject then
+      begin
+        Dec(ident);
+        _Log(']');
+      end
+      else if zs.TokenType = ttPropertyName then
+        _Log('"' + zs.GetString() + '" : ')
+      else if zs.TokenType = ttStartArray then
+      begin
+        _Log('[');
+        Inc(ident);
+      end
+      else if zs.TokenType = ttEndArray then
+      begin
+        Dec(ident);
+        _Log(']')
+      end
+      else if zs.TokenType <> ttNone then
+      begin
+        _Log(zs.GetValue());
+      end
+
+    end;
+
+  finally
+    zs.Free();
+  end;
+end;
+
+procedure TfmMain.FormCreate(Sender: TObject);
+begin
+  Left := -1300;
+end;
+
 end.
+
