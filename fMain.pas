@@ -11,9 +11,11 @@ type
     Button1 : TButton;
     Button2 : TButton;
     Memo1 : TMemo;
+    Button3: TButton;
     procedure Button1Click(Sender : TObject);
     procedure Button2Click(Sender : TObject);
     procedure FormCreate(Sender: TObject);
+    procedure Button3Click(Sender: TObject);
   private
     { Private declarations }
   public
@@ -27,8 +29,9 @@ implementation
 
 uses
   Unit1,
-  //uLkJSON,
-  zsJSON;
+  uLkJSON,
+  zsJSON,
+  DateUtils;
 
 {$R *.dfm}
 
@@ -57,6 +60,8 @@ var
 
   procedure _Log(s : string);
   begin
+    if Self <> nil then
+      Exit;
     Memo1.Lines.Add(_SS() + s);
   end;
 
@@ -65,10 +70,11 @@ var
   zs : TzsJSONReader;
   ss : TStringStream;
   s : string;
+  dt : TDateTime;
 begin
   ident := 0;
   ss := nil;
-  fs := TFileStream.Create('d:\_SSD\pzdc.json', fmOpenRead);
+  fs := TFileStream.Create('d:\_SSD\piupiu.json', fmOpenRead);
   try
     ss := TStringStream.Create('');
     ss.CopyFrom(fs, fs.Size);
@@ -79,6 +85,7 @@ begin
   end;
 
   Memo1.Clear();
+  dt := Now();
   zs := TzsJSONReader.Create(s);
   try
     while zs.Read() do
@@ -115,11 +122,40 @@ begin
   finally
     zs.Free();
   end;
+  Memo1.Lines.Add('Готово!');
+  Memo1.Lines.Add(IntToStr(MilliSecondsBetween(dt, Now()) ));
 end;
 
 procedure TfmMain.FormCreate(Sender: TObject);
 begin
   Left := -1300;
+end;
+
+procedure TfmMain.Button3Click(Sender: TObject);
+var
+  js : TlkJSONobject;
+  fs : TFileStream;
+  ss : TStringStream;
+  s : string;
+  dt : TDateTime;
+begin
+  ss := nil;
+  fs := TFileStream.Create('d:\_SSD\piupiu.json', fmOpenRead);
+  try
+    ss := TStringStream.Create('');
+    ss.CopyFrom(fs, fs.Size);
+    s := ss.DataString;
+  finally
+    fs.Free();
+    ss.Free();
+  end;
+  Memo1.Clear();
+  dt := Now();
+  js := TlkJSON.ParseText(s) as TlkJSONobject;
+  js.Free();
+
+  Memo1.Lines.Add('Фсё');
+  Memo1.Lines.Add(IntToStr(MilliSecondsBetween(dt, Now()) ));
 end;
 
 end.

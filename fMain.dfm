@@ -42,4 +42,13 @@ object fmMain: TfmMain
       'Memo1')
     TabOrder = 2
   end
+  object Button3: TButton
+    Left = 38
+    Top = 168
+    Width = 75
+    Height = 25
+    Caption = 'Button3'
+    TabOrder = 3
+    OnClick = Button3Click
+  end
 end

@@ -30,11 +30,6 @@ type
 
     procedure _PrefetchValue();
 
-    (*
-    FSavePos : Int64;
-    procedure _SavePos();
-    procedure _LoadPos();
-    (**)
     function _Read(const cnt : Integer; bRaise : Boolean = False) : Boolean;
     function _SkipWhiteSpaces(bRaise : Boolean = False) : Boolean;
 
@@ -101,8 +96,6 @@ begin
   FStream := TStringStream.Create(AString);
   FTokenType := ttNone;
   PushStack();
-  if not IsEmpty then
-    raise Exception.Create('Чудо');
 end;
 
 destructor TzsJSONReader.Destroy();
@@ -178,18 +171,6 @@ begin
       Exit;
     end;
 
-    (*
-    if FTokenType in [ttEndObject, ttEndArray] then
-    begin
-      FTokenType := PeekStack();
-
-      if p^ = ',' then
-        _SkipWhiteSpaces(FTop > 0)
-      else
-        FStream.Seek(-1, soCurrent);
-    end;
-    (**)
-
     if Self.FTokenType = ttNone then // Допустимы только объект и массив
     begin
       FValueReady := False;
@@ -207,7 +188,6 @@ begin
 
     if p^ = '}' then
     begin
-      // if (FTokenType = ttStartObject) or ((FValueReady = True) and (PeekStack() = ttStartObject)) then
       if PeekStack() = ttStartObject then
       begin
         Self.FTokenType := ttEndObject;
@@ -220,7 +200,6 @@ begin
 
     if p^ = ']' then
     begin
-      // if (FTokenType = ttStartArray) or ((FValueReady = True) and (PeekStack() = ttStartArray)) then
       if PeekStack() = ttStartArray then
       begin
         Self.FTokenType := ttEndArray;
@@ -231,7 +210,7 @@ begin
         _RaiseChar(p^);
     end;
 
-    if FTokenType = ttStartObject then // Возможны  ttEndObject и ttPropertyName
+    if FTokenType = ttStartObject then
     begin
       if (p^ = ',') then
       begin
@@ -335,10 +314,10 @@ begin
   begin
     _Read(1, True);
 
-    if p = '"' then
+    if p^ = '"' then
       break;
 
-    if p = '\' then
+    if p^ = '\' then
     begin
       _Read(1, True);
 
@@ -353,9 +332,8 @@ begin
           begin
             _Read(4, True);
             FBuff[4] := #0;
-{MESSAGE 'Проверить последовательность'}
-            b[0] := _H2B(@FBuff[0]);
-            b[1] := _H2B(@FBuff[2]);
+            b[1] := _H2B(@FBuff[0]);
+            b[0] := _H2B(@FBuff[2]);
             WideCharToMultiByte(1251, 0, PWidechar(@b[0]), 1, p, 1, nil, nil);
             Result := Result + p^;
           end
@@ -368,9 +346,6 @@ begin
       Result := Result + p^;
 
   end;
-
-  // Пропускаем "
-  //_Read(1, True);
 end;
 
 function TzsJSONReader.GetValue() : string;
@@ -422,24 +397,12 @@ begin
   else if FTokenType = ttNone then
     b := 0
   else
-    raise Exception.Create('Не радо в меня это пушить');
+    raise Exception.Create('Ошибка в TzsJSONReader.PushStack');
 
-  (*
-  if b <> 0 then
-  begin
-    _SavePos();
-    _SkipWhiteSpaces(True);
-    if ((b = 1) and (FBuff = '}') or (b = 2) and (FBuff = ']')) then
-      b := b or $10;
-
-    _LoadPos();
-  end;
-  (**)
 
   FStack[FTop] := b;
 end;
 
-//(*
 procedure TzsJSONReader._PrefetchValue();
 
   function _CorrectNumValue() : Boolean;
@@ -583,19 +546,6 @@ begin
   end;
 
 end;
-(**)
-
-(*
-procedure TzsJSONReader._LoadPos();
-begin
-  FStream.Seek(FSavePos - FStream.Position, soCurrent);
-end;
-
-procedure TzsJSONReader._SavePos();
-begin
-  FSavePos := FStream.Position;
-end;
-(**)
 
 function TzsJSONReader.GetIsEmpty() : Boolean;
 begin
