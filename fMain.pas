@@ -11,11 +11,11 @@ type
     Button1 : TButton;
     Button2 : TButton;
     Memo1 : TMemo;
-    Button3: TButton;
+    Button3 : TButton;
+    Button4 : TButton;
     procedure Button1Click(Sender : TObject);
     procedure Button2Click(Sender : TObject);
-    procedure FormCreate(Sender: TObject);
-    procedure Button3Click(Sender: TObject);
+    procedure FormCreate(Sender : TObject);
   private
     { Private declarations }
   public
@@ -29,8 +29,9 @@ implementation
 
 uses
   Unit1,
-  uLkJSON,
+  //uLkJSON,
   zsJSON,
+  SynCrossPlatformJSON,
   DateUtils;
 
 {$R *.dfm}
@@ -47,115 +48,35 @@ end;
 
 procedure TfmMain.Button2Click(Sender : TObject);
 var
-  ident : Integer;
-
-  function _SS() : string;
-  var
-    i : Integer;
-  begin
-    Result := '';
-    for i := 1 to ident do
-      Result := Result + '  ';
-  end;
-
-  procedure _Log(s : string);
-  begin
-    if Self <> nil then
-      Exit;
-    Memo1.Lines.Add(_SS() + s);
-  end;
-
-var
+  zs : TzsJSON;
   fs : TFileStream;
-  zs : TzsJSONReader;
-  ss : TStringStream;
-  s : string;
   dt : TDateTime;
 begin
-  ident := 0;
-  ss := nil;
-  fs := TFileStream.Create('d:\_SSD\piupiu.json', fmOpenRead);
-  try
-    ss := TStringStream.Create('');
-    ss.CopyFrom(fs, fs.Size);
-    s := ss.DataString;
-  finally
-    fs.Free();
-    ss.Free();
-  end;
-
   Memo1.Clear();
   dt := Now();
-  zs := TzsJSONReader.Create(s);
+  zs := nil;
+  fs := TFileStream.Create('d:\_SSD\piupiu10000.json', fmOpenRead);
   try
-    while zs.Read() do
+    zs := TzsJSON.Create();
+    zs.Load(fs);
+    dt := Now() - dt;
+    if zs.ItemType = zsArray then
     begin
-      if zs.TokenType = ttStartObject then
-      begin
-        _Log('{');
-        Inc(ident);
-      end
-      else if zs.TokenType = ttEndObject then
-      begin
-        Dec(ident);
-        _Log(']');
-      end
-      else if zs.TokenType = ttPropertyName then
-        _Log('"' + zs.GetString() + '" : ')
-      else if zs.TokenType = ttStartArray then
-      begin
-        _Log('[');
-        Inc(ident);
-      end
-      else if zs.TokenType = ttEndArray then
-      begin
-        Dec(ident);
-        _Log(']')
-      end
-      else if zs.TokenType <> ttNone then
-      begin
-        _Log(zs.GetValue());
-      end
-
+      Memo1.Lines.Add(Format('Массив на %d штук', [zs.Count]));
+      Memo1.Lines.Add(zs.Items[0]['Comunication'].Items[0]['Value'].Value);
     end;
-
   finally
+    fs.Free();
     zs.Free();
   end;
-  Memo1.Lines.Add('Готово!');
-  Memo1.Lines.Add(IntToStr(MilliSecondsBetween(dt, Now()) ));
-end;
-
-procedure TfmMain.FormCreate(Sender: TObject);
-begin
-  Left := -1300;
-end;
-
-procedure TfmMain.Button3Click(Sender: TObject);
-var
-  js : TlkJSONobject;
-  fs : TFileStream;
-  ss : TStringStream;
-  s : string;
-  dt : TDateTime;
-begin
-  ss := nil;
-  fs := TFileStream.Create('d:\_SSD\piupiu.json', fmOpenRead);
-  try
-    ss := TStringStream.Create('');
-    ss.CopyFrom(fs, fs.Size);
-    s := ss.DataString;
-  finally
-    fs.Free();
-    ss.Free();
-  end;
-  Memo1.Clear();
-  dt := Now();
-  js := TlkJSON.ParseText(s) as TlkJSONobject;
-  js.Free();
 
   Memo1.Lines.Add('Фсё');
-  Memo1.Lines.Add(IntToStr(MilliSecondsBetween(dt, Now()) ));
+  Memo1.Lines.Add(IntToStr(MilliSecondsBetween(0, dt)));
+end;
+
+procedure TfmMain.FormCreate(Sender : TObject);
+begin
+  Left := -1300;
 end;
 
 end.

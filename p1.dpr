@@ -4,7 +4,8 @@ uses
   Forms,
   fMain in 'fMain.pas' {fmMain},
   Unit1 in 'Unit1.pas' {Form1},
-  zsJSON in 'zsJSON.pas';
+  zsJSON in 'zsJSON.pas',
+  SynCrossPlatformJSON in '..\..\!\mORMot\CrossPlatform\SynCrossPlatformJSON.pas';
 
 {$R *.res}
 

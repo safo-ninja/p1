@@ -17,13 +17,14 @@ type
     procedure SetIsEmpty(const Value : Boolean);
   private
     FBuff : packed array[0..63] of Char;
-    FStream : TStringStream;
+    FStream : TStream;
     FTokenType : TzsTokenType;
     FValueReady : Boolean;
     FValue : string;
     FStack : array of Byte;
 
     FTop : Integer;
+
     function PeekStack() : TzsTokenType;
     function PopStack() : TzsTokenType;
     procedure PushStack();
@@ -35,13 +36,47 @@ type
 
     property IsEmpty : Boolean read GetIsEmpty write SetIsEmpty;
   public
-    constructor Create(AString : string);
+    constructor Create(AStream : TStream);
     destructor Destroy(); override;
     function Read() : Boolean;
     function GetString() : string;
     function GetValue() : string;
 
     property TokenType : TzsTokenType read FTokenType;
+  end;
+
+  TzsItemType = (zsString, zsNumber, zsObject, zsArray, zsNull, zsTrue, zsFalse);
+
+  TzsJSONItem = class
+  private
+    FOwner : TzsJSONItem;
+    FName : string;
+    FItemType : TzsItemType;
+    FItems : TList;
+    FValue : string;
+
+    function Vperde(AItemType : TzsItemType) : TzsJSONItem;
+
+    procedure LoadFromReader(r : TzsJSONReader);
+    function GetItemsByIndex(i : Integer) : TzsJSONItem;
+    function GetCount() : Integer;
+    function GetItemsByName(itemName : string) : TzsJSONItem;
+    function GetValue : string;
+  public
+    constructor Create();
+    destructor Destroy(); override;
+    procedure Clear();
+    property Count : Integer read GetCount;
+    property Items[i : Integer] : TzsJSONItem read GetItemsByIndex;
+    property ItemByName[itemName : string] : TzsJSONItem read GetItemsByName; default;
+    property Name : string read FName write FName;
+    property ItemType : TzsItemType read FItemType;
+    property Value : string read GetValue;
+  end;
+
+  TzsJSON = class(TzsJSONItem)
+  public
+    procedure Load(AStream : TStream);
   end;
 
 implementation
@@ -87,20 +122,19 @@ begin
   Result := False;
 end;
 
-constructor TzsJSONReader.Create(AString : string);
+constructor TzsJSONReader.Create(AStream : TStream);
 begin
   FTop := -1;
   SetLength(FStack, 100);
   FStack[1] := 0;
 
-  FStream := TStringStream.Create(AString);
+  FStream := AStream;
   FTokenType := ttNone;
   PushStack();
 end;
 
 destructor TzsJSONReader.Destroy();
 begin
-  FStream.Free();
   inherited;
 end;
 
@@ -109,7 +143,7 @@ begin
   if iWantThisChar = '' then
     raise Exception.CreateFmt('Неожиданный символ #%d', [Ord(c)])
   else
-    raise Exception.CreateFmt('Неожиданный символ #%d вместо "%s"', [c, iWantThisChar]);
+    raise Exception.CreateFmt('Неожиданный символ #%d вместо "%s"', [Ord(c), iWantThisChar]);
 end;
 
 function TzsJSONReader.Read() : Boolean;
@@ -224,7 +258,8 @@ begin
         _RaiseChar(p^);
 
       Self.FTokenType := ttPropertyName;
-      FValueReady := False;
+      FValue := GetString();
+      FValueReady := True;
       IsEmpty := False;
       Exit;
     end;
@@ -270,7 +305,6 @@ begin
         FTokenType := ttEndObject;
         Exit;
       end;
-
 
       _PrefetchValue();
       FTokenType := ttPropertyName;
@@ -398,7 +432,6 @@ begin
     b := 0
   else
     raise Exception.Create('Ошибка в TzsJSONReader.PushStack');
-
 
   FStack[FTop] := b;
 end;
@@ -558,6 +591,143 @@ begin
     FStack[FTop] := FStack[FTop] and (not $10)
   else
     FStack[FTop] := FStack[FTop] or $10;
+end;
+
+{ TzsJSON }
+
+procedure TzsJSONItem.Clear();
+var
+  i : Integer;
+begin
+  for i := 0 to Count - 1 do
+  begin
+    Items[i].Clear();
+    Items[i].Free();
+  end;
+
+  FItems.Clear();
+end;
+
+constructor TzsJSONItem.Create();
+begin
+  FItems := TList.Create();
+end;
+
+destructor TzsJSONItem.Destroy();
+begin
+  Clear();
+  FItems.Free();
+  inherited;
+end;
+
+function TzsJSONItem.GetCount() : Integer;
+begin
+  Result := FItems.Count;
+end;
+
+function TzsJSONItem.GetItemsByIndex(i : Integer) : TzsJSONItem;
+begin
+  Result := TzsJSONItem(FItems[i]);
+end;
+
+function TzsJSONItem.GetItemsByName(itemName : string) : TzsJSONItem;
+var
+  i : Integer;
+begin
+  for i := 0 to Count - 1 do
+  begin
+    if Items[i].Name = itemName then
+    begin
+      Result := Items[i];
+      Exit;
+    end;
+  end;
+
+  raise Exception.CreateFmt('Нет ничего с именем "%s"', [itemName]);
+end;
+
+{ TzsJSON }
+
+procedure TzsJSON.Load(AStream : TStream);
+var
+  r : TzsJSONReader;
+begin
+  Self.Clear();
+  r := TzsJSONReader.Create(AStream);
+  try
+    if not r.Read() then
+      raise Exception.Create('Не получается прочитать JSON');
+
+    case r.TokenType of
+      ttStartObject : Self.FItemType := zsObject;
+      ttStartArray : Self.FItemType := zsArray;
+      else
+        raise Exception.Create('Неведомый JSON');
+    end;
+
+    LoadFromReader(r);
+    if r.Read() then
+      raise Exception.Create('Кааим-то образос получилось прочитить не весь JSON');
+  finally
+    r.Free();
+  end;
+end;
+
+function TzsJSONItem.GetValue() : string;
+begin
+  Result := FValue;
+end;
+
+procedure TzsJSONItem.LoadFromReader(r : TzsJSONReader);
+  function _tt2it(tt : TzsTokenType) : TzsItemType;
+  begin
+    case tt of
+      ttNull : Result := zsNull;
+      ttTrue : Result := zsTrue;
+      ttFalse : Result := zsFalse;
+      ttNumber : Result := zsNumber;
+      ttString : Result := zsString;
+      ttStartObject : Result := zsObject;
+      ttStartArray : Result := zsArray;
+      else
+        raise Exception.Create('Фигня какая-то');
+    end;
+  end;
+var
+  itemName : string;
+  newItem : TzsJSONItem;
+begin
+  while r.Read() do
+  begin
+    if (Self.ItemType = zsObject) and (r.TokenType = ttEndObject) then
+      Break;
+    if (Self.ItemType = zsArray) and (r.TokenType = ttEndArray) then
+      break;
+
+    if r.TokenType = ttPropertyName then
+    begin
+      itemName := r.GetString();
+      continue;
+    end;
+
+    newItem := Vperde(_tt2it(r.TokenType));
+
+    if Self.ItemType = zsObject then
+      newItem.FName := itemName;
+
+    if newItem.ItemType in [zsObject, zsArray] then
+      newItem.LoadFromReader(r)
+    else
+      newItem.FValue := r.GetValue();
+  end;
+end;
+
+function TzsJSONItem.Vperde(AItemType : TzsItemType) : TzsJSONItem;
+begin
+  Result := TzsJSONItem.Create();
+  Result.FItemType := AItemType;
+  Self.FItems.Add(Result);
+  Result.FOwner := Self;
 end;
 
 end.

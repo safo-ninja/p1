@@ -49,6 +49,13 @@ object fmMain: TfmMain
     Height = 25
     Caption = 'Button3'
     TabOrder = 3
-    OnClick = Button3Click
+  end
+  object Button4: TButton
+    Left = 26
+    Top = 236
+    Width = 75
+    Height = 25
+    Caption = 'Button4'
+    TabOrder = 4
   end
 end
