@@ -123,17 +123,17 @@ type
     property Name : string read FName write FName;
     property ItemType : TzsItemType read FItemType;
     property Value : string read GetValue;
-    function GetAsBoolean(): Boolean;
-    procedure SetAsBoolean(const b: Boolean);
-    function GetAsDateTime(): TDateTime;
-    procedure SetAsDateTime(const dt: TDateTime);
-    function GetAsFloat(): Extended;
-    procedure SetAsFloat(const f: Extended; const digits : Integer); overload;
-    procedure SetAsFloat(const f: Extended); overload;
-    function GetAsInt(): Integer;
-    procedure SetAsInt(const n: Integer);
-    function GetAsInt64(): Int64;
-    procedure SetAsInt64(const n: Int64);
+    function GetAsBoolean() : Boolean;
+    procedure SetAsBoolean(const b : Boolean);
+    function GetAsDateTime() : TDateTime;
+    procedure SetAsDateTime(const dt : TDateTime);
+    function GetAsFloat() : Extended;
+    procedure SetAsFloat(const f : Extended; const digits : Integer); overload;
+    procedure SetAsFloat(const f : Extended); overload;
+    function GetAsInt() : Integer;
+    procedure SetAsInt(const n : Integer);
+    function GetAsInt64() : Int64;
+    procedure SetAsInt64(const n : Int64);
   end;
 
   TzsJSON = class(TzsJSONItem)
@@ -767,11 +767,6 @@ class function TzsJSON.DecodeDateTime(s : string) : TDateTime;
 var
   L : Integer;
 
-  procedure _SayAzaza();
-  begin
-    raise Exception.Create('Неведомый формат даты ' + s);
-  end;
-
   function _Chk(const s, t : string; const bExt : Boolean = False) : Boolean;
   var
     i : Integer;
@@ -816,7 +811,7 @@ var
   Y, M, D, HH, NN, SS : Word;
 begin
   L := Length(s);
-  Result := 0;
+
   try
     if _Chk(s, 'T00:00:00') then
     begin
@@ -863,7 +858,7 @@ begin
       Result := EncodeDate(Y, M, D);
     end
     else
-      _SayAzaza();
+      raise Exception.Create('Неведомый формат даты ' + s);
   except
     raise;
   end;
@@ -987,7 +982,7 @@ begin
   r := TzsJSONReader.Create(AStream);
   try
     if not r.Read() then
-      raise Exception.Create('Не получается прочитать JSON');
+      raise Exception.Create('Не удалось прочитать JSON');
 
     case r.TokenType of
       ttStartObject : Self.FItemType := zsObject;
@@ -998,7 +993,7 @@ begin
 
     LoadFromReader(r);
     if r.Read() then
-      raise Exception.Create('Кааим-то образос получилось прочитить не весь JSON');
+      raise Exception.Create('Каким-то образом получилось прочитать не весь JSON');
   finally
     r.Free();
   end;
@@ -1052,13 +1047,12 @@ begin
   end;
 end;
 
-function TzsJSONItem.GetAsBoolean(): Boolean;
+function TzsJSONItem.GetAsBoolean() : Boolean;
 begin
   Result := FValue = 'true';
 end;
 
-
-procedure TzsJSONItem.SetAsBoolean(const b: Boolean);
+procedure TzsJSONItem.SetAsBoolean(const b : Boolean);
 begin
   if b then
     Self.FValue := 'true'
@@ -1141,7 +1135,7 @@ var
   ttCurrent : TzsTokenType;
 begin
   if (FTop = 0) and HasItems then
-    raise Exception.Create('Многокорневые объекты не поддерживаются в бесплатной версии');
+    raise Exception.Create('Многокоренные объекты не поддерживаются в бесплатной версии');
 
   ttCurrent := PeekStack();
 
@@ -1162,7 +1156,6 @@ begin
 
   if FTop >= Length(FStack) then
     SetLength(FStack, FTop + 30);
-
 
   ValueNeeded := False;
 
@@ -1248,7 +1241,7 @@ begin
   if ADecimalCnt >= 0 then
     WriteRawValue(Format('%.' + IntToStr(ADecimalCnt) + 'f', [AValue], zbsettings))
   else
-    raise Exception.Create('Отрицательное количество десятичных знаков запрещено в бесплатной версии');
+    raise Exception.Create('Отрицательное количество десятичных знаков не поддерживается в бесплатной версии');
 end;
 
 procedure TzsJSONWriter.WriteNullValue(const AName : string);
@@ -1279,14 +1272,12 @@ end;
 procedure TzsJSONWriter.WritePropertyName(const AName : string);
 begin
   CheckAllowProperty();
-
   CheckValueNeeded(False);
   WritePreStr();
 
+  Self.Write(TzsJSON.EncodeString(AName));
   if FIdent > 0 then
-    Self.Write('"' + AName + '": ')
-  else
-    Self.Write('"' + AName + '":');
+    Self.Write(' ');
 
   ValueNeeded := True;
 end;
@@ -1300,6 +1291,7 @@ begin
   begin
     if FIdent > 0 then
       Write(''#13#10);
+
     WriteIdent();
   end;
 end;
@@ -1352,7 +1344,6 @@ begin
       begin
         WritePreStr();
         Write(AValue);
-
       end;
     else
       raise Exception.Create('Нелья записать значение в никуда');
@@ -1386,47 +1377,47 @@ begin
     FStack[FTop] := FStack[FTop] and $DF;
 end;
 
-function TzsJSONItem.GetAsDateTime(): TDateTime;
+function TzsJSONItem.GetAsDateTime() : TDateTime;
 begin
   Result := TzsJSON.DecodeDateTime(Self.FValue);
 end;
 
-procedure TzsJSONItem.SetAsDateTime(const dt: TDateTime);
+procedure TzsJSONItem.SetAsDateTime(const dt : TDateTime);
 begin
   Self.FValue := TzsJSON.EncodeDateTime(dt);
 end;
 
-function TzsJSONItem.GetAsFloat(): Extended;
+function TzsJSONItem.GetAsFloat() : Extended;
 begin
   Result := StrToFloat(FValue, zbsettings);
 end;
 
-procedure TzsJSONItem.SetAsFloat(const f: Extended);
+procedure TzsJSONItem.SetAsFloat(const f : Extended);
 begin
   FValue := FloatToStr(f, zbsettings);
 end;
 
-procedure TzsJSONItem.SetAsFloat(const f: Extended; const digits: Integer);
+procedure TzsJSONItem.SetAsFloat(const f : Extended; const digits : Integer);
 begin
   FValue := FloatToStrF(f, ffFixed, 18, digits, zbsettings);
 end;
 
-function TzsJSONItem.GetAsInt(): Integer;
+function TzsJSONItem.GetAsInt() : Integer;
 begin
   Result := StrToInt(FValue);
 end;
 
-procedure TzsJSONItem.SetAsInt(const n: Integer);
+procedure TzsJSONItem.SetAsInt(const n : Integer);
 begin
   FValue := IntToStr(n);
 end;
 
-function TzsJSONItem.GetAsInt64(): Int64;
+function TzsJSONItem.GetAsInt64() : Int64;
 begin
   Result := StrToInt64(FValue);
 end;
 
-procedure TzsJSONItem.SetAsInt64(const n: Int64);
+procedure TzsJSONItem.SetAsInt64(const n : Int64);
 begin
   FValue := IntToStr(n);
 end;
